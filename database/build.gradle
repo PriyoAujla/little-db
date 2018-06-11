@@ -1,0 +1,10 @@
+apply plugin: 'application'
+
+dependencies {
+
+    compile libraries["metrics"]
+
+    testCompile libraries["guava"]
+    testCompile libraries["hamkrest"]
+    testCompile libraries["junit"]
+}

@@ -7,10 +7,12 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
+import java.io.BufferedInputStream
 import java.io.File
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPInputStream
 
 
 @Ignore("For help in profiling")
@@ -22,12 +24,33 @@ class LoadTester {
             .convertRatesTo(TimeUnit.SECONDS)
             .convertDurationsTo(TimeUnit.MILLISECONDS)
             .build()
+
     @Before
-    fun cleanup() =
-            storageDirectory
-                    .listFiles()
-                    .filter { !it.isHidden }
-                    .forEach { it.deleteRecursively() }
+    fun setup() {
+        storageDirectory
+                .listFiles()
+                .filter { !it.isHidden }
+                .forEach { it.deleteRecursively() }
+
+        unzipAndCopyAllTo(File("src/test/resources/stress-test-file-only"), storageDirectory)
+        unzipAndCopyAllTo(File("src/test/resources/stress-test-inmemory-only"), storageDirectory)
+    }
+
+    private fun unzipAndCopyAllTo(from: File, to: File) {
+        val newDir = to.resolve(File(from.name))
+        newDir.mkdir()
+        from
+                .listFiles()
+                .forEach { file ->
+                    val newFile = newDir.resolve(File(file.name.removeSuffix(".gz")))
+                    newFile.outputStream()
+                            .use { dataSink ->
+                                BufferedInputStream(GZIPInputStream(file.inputStream())).use { dataSource ->
+                                    dataSource.copyTo(dataSink)
+                                }
+                            }
+                }
+    }
 
     @After
     fun metrics() = reporter.report()
@@ -131,7 +154,7 @@ class LoadTester {
 
     @Test
     fun `calculate sequential reads per second from in memory table with 1mb inserts`() {
-        val database = InMemoryThenToFileDatabase(databaseFilesPath = File("src/test/resources/stress-test-inmemory-only"))
+        val database = InMemoryThenToFileDatabase(databaseFilesPath = storageDirectory.resolve(File("stress-test-inmemory-only")))
 
         val records = 80
         val testData = TestDataFixture.MbData()
@@ -153,7 +176,7 @@ class LoadTester {
 
     @Test
     fun `calculate concurrent reads per second from in memory table with 1mb inserts`() {
-        val database = InMemoryThenToFileDatabase(databaseFilesPath = File("src/test/resources/stress-test-inmemory-only"))
+        val database = InMemoryThenToFileDatabase(databaseFilesPath = storageDirectory.resolve(File("stress-test-inmemory-only")))
 
         val records = 80
         val testData = TestDataFixture.MbData()
@@ -241,21 +264,16 @@ class LoadTester {
      */
     @Test
     fun `calculate sequential reads per second from file table with 1mb inserts`() {
-        val database = InMemoryThenToFileDatabase(databaseFilesPath = File("src/test/resources/stress-test-file-only"))
+        val database = InMemoryThenToFileDatabase(databaseFilesPath = storageDirectory.resolve(File("stress-test-file-only")))
 
         val records = 888
         val testData = TestDataFixture.MbData()
 
         0.until(1).forEach {
-            val start = System.nanoTime()
             IntRange(0, records).forEach {
                 val key = StringKey("medium-" + it.toString())
                 check(database.get(key), testData)
             }
-            val end = System.nanoTime()
-
-            val recordsPerSecond = (records.toDouble() / TimeUnit.NANOSECONDS.toMillis(end - start)) * 1000
-            println("Read $recordsPerSecond/s")
 
         }
     }
@@ -263,7 +281,7 @@ class LoadTester {
 
     @Test
     fun `calculate concurrent reads per second from file table with 1mb inserts`() {
-        val database = InMemoryThenToFileDatabase(databaseFilesPath = File("src/test/resources/stress-test-file-only"))
+        val database = InMemoryThenToFileDatabase(databaseFilesPath = storageDirectory.resolve(File("stress-test-file-only")))
 
         val records = 888
         val testData = TestDataFixture.MbData()
@@ -278,12 +296,7 @@ class LoadTester {
                 }
             }
 
-            val start = System.nanoTime()
             Executors.newWorkStealingPool(4).invokeAll(reads).forEach { it.get() }
-            val end = System.nanoTime()
-
-            val recordsPerSecond = (records.toDouble() / TimeUnit.NANOSECONDS.toMillis(end - start)) * 1000
-            println("Read $recordsPerSecond/s")
         }
 
     }

@@ -19,8 +19,7 @@ abstract class IntegrationTest {
         @BeforeClass
         @JvmStatic
         fun removeTempDirectories() {
-            storageDirectory
-                    .deleteRecursively()
+            storageDirectory.deleteRecursively()
             storageDirectory.mkdir()
         }
 

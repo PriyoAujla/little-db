@@ -60,7 +60,7 @@ class LoadTester {
         val database = InMemoryThenToFileDatabase(databaseFilesPath = storageDirectory, sizeOfMemoryTable = 1_048_576)
 
         val agents = IntRange(0, 15).map {
-            StressAgent("agent-$it", 1_000, database)
+            StressAgent("agent-$it", 5_000, database)
         }
 
         Executors.newWorkStealingPool(8).invokeAll(agents).forEach { it.get() }

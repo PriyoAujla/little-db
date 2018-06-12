@@ -1,10 +1,12 @@
 package com.deliriouslycurious
 
 import com.deliriouslycurious.Status.*
+import com.deliriouslycurious.records.DatabaseFiles
 import com.deliriouslycurious.records.FileRecords
 import com.deliriouslycurious.records.InMemoryRecords
 import java.io.File
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 
 
 private val defaultSizeOf128Mb = 134_217_728
@@ -14,8 +16,10 @@ class InMemoryThenToFileDatabase(sizeOfMemoryTable: Int = defaultSizeOf128Mb,
 ) : LittleDatabase {
 
     private val maxKeySize = 4098
+    private val databaseFiles = DatabaseFiles(databaseFilesPath)
     private val inMemoryRecords = InMemoryRecords(sizeOfMemoryTable, databaseFilesPath)
-    private val fileRecords = FileRecords(databaseFilesPath)
+    private val fileRecords = FileRecords(databaseFiles)
+    private val nextTableNumber = AtomicInteger(databaseFiles.files().count())
 
     override fun insert(record: Pair<Key, Data>) {
         record.first.validateSizeOrThrow()
@@ -55,7 +59,7 @@ class InMemoryThenToFileDatabase(sizeOfMemoryTable: Int = defaultSizeOf128Mb,
             val result = insertRecord()
             when (result) {
                 is InsufficientSpace -> {
-                    inMemoryRecords.migrateToFilesRecords(result.spaceRequired, fileRecords)
+                    inMemoryRecords.migrateToFilesRecords(result.spaceRequired, fileRecords, nextTableNumber)
                 }
                 is RecordIsTooLarge -> throw Exception("Record is too large $result")
             }

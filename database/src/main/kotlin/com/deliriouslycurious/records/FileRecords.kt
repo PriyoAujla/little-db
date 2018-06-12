@@ -7,9 +7,9 @@ import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.coroutines.experimental.buildSequence
 
-internal class FileRecords(databaseFilesPath: File) {
+internal class FileRecords(databaseFiles: DatabaseFiles) {
 
-    private val files: ConcurrentLinkedDeque<DatabaseFile> = ConcurrentLinkedDeque(DatabaseFiles.files(databaseFilesPath))
+    private val files: ConcurrentLinkedDeque<DatabaseFile> = ConcurrentLinkedDeque(databaseFiles.files())
 
     fun add(file: DatabaseFile) {
         files.addFirst(file)
@@ -35,25 +35,25 @@ internal class FileRecords(databaseFilesPath: File) {
 
 }
 
-internal class DatabaseFiles {
+internal class DatabaseFiles(private val databaseFilesPath: File) {
+
     companion object {
-
-        private val extractFileNumber = Regex("table-([0-9]+).db")
-
         fun fileName(number: Int): String {
             return "table-$number.db"
         }
-
-        fun files(databaseFilesPath: File): List<DatabaseFile> = databaseFilesPath
-                .listFiles()
-                .filter { it.name.endsWith(".db") }
-                .mapNotNull { file ->
-                    val fileNumber = extractFileNumber.find(file.name)?.groupValues?.get(1)?.toInt()
-                    fileNumber?.let { Pair(it, file) }
-                }
-                .sortedByDescending { it.first }
-                .map { DatabaseFile(it.second) }
     }
+
+    private val extractFileNumber = Regex("table-([0-9]+).db")
+
+    fun files(): List<DatabaseFile> = databaseFilesPath
+            .listFiles()
+            .filter { it.name.endsWith(".db") }
+            .mapNotNull { file ->
+                val fileNumber = extractFileNumber.find(file.name)?.groupValues?.get(1)?.toInt()
+                fileNumber?.let { Pair(it, file) }
+            }
+            .sortedByDescending { it.first }
+            .map { DatabaseFile(it.second) }
 }
 
 internal class DatabaseFile(private val file: File) {
@@ -70,7 +70,7 @@ internal class DatabaseFile(private val file: File) {
 
     private fun fetchRecordAndOffsetsWhere(keySearchCriteria: KeySearchCriteria): CloseableSequence<RecordAndOffset> {
         val randomAccessFile = RandomAccessFile(file, "r")
-        if(keySearchCriteria is SpecifiedKey) {
+        if (keySearchCriteria is SpecifiedKey) {
             val offset = index.offsetFor(keySearchCriteria.subject)
             randomAccessFile.seek(offset.value)
         }
@@ -105,7 +105,7 @@ internal class DatabaseFile(private val file: File) {
         return CloseableSequence(channel, sequence)
     }
 
-    private data class RecordAndOffset(val record: Record, val offset:Long)
+    private data class RecordAndOffset(val record: Record, val offset: Long)
     private data class KeyOffset(val key: Key, val offset: ByteOffset)
 
     private class SkipIndex(private val offsets: List<KeyOffset> = emptyList(), private val endOfFileOffset: ByteOffset = ByteOffset(0L)) {

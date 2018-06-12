@@ -12,7 +12,6 @@ internal class InMemoryRecords(private val size: Int, private val databaseFilesP
     private val readEndPosition = AtomicInteger(0)
     private val writeEndPosition = AtomicInteger(0)
     private val logWriter = LogWriter(databaseFilesPath)
-    private val nextTableNumber = AtomicInteger(DatabaseFiles.files(databaseFilesPath).count())
     @Volatile private var records: ByteArray = ByteArray(size).apply {
         if (logWriter.logFile.exists()) {
             val readBytes = logWriter.logFile.readBytes()
@@ -60,7 +59,7 @@ internal class InMemoryRecords(private val size: Int, private val databaseFilesP
 
     fun delete(key: Key): Status = addRecord(key, emptyData, emptyRecordInfo.withDeleteBitSet())
 
-    fun migrateToFilesRecords(spaceNeededToWriteRecord: Int, fileRecords: FileRecords): Status {
+    fun migrateToFilesRecords(spaceNeededToWriteRecord: Int, fileRecords: FileRecords, nextTableNumber: AtomicInteger): Status {
         synchronized(this) {
             val currentFreeSpace = size - writeEndPosition.get()
             // check again if migration is necessary for the given record size

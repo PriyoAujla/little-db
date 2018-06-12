@@ -1,5 +1,6 @@
 package com.deliriouslycurious
 
+import com.deliriouslycurious.records.Record
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer

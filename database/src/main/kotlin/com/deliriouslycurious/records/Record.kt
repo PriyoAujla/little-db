@@ -1,5 +1,7 @@
-package com.deliriouslycurious
+package com.deliriouslycurious.records
 
+import com.deliriouslycurious.Data
+import com.deliriouslycurious.Key
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.experimental.and

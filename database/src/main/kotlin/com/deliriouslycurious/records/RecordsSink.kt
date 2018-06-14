@@ -1,9 +1,11 @@
 package com.deliriouslycurious.records
 
+import java.util.concurrent.ConcurrentLinkedDeque
+
 interface RecordsSink: (Sequence<Record>) -> Unit
 
 internal class FileRecordsSink(private val databaseFiles: DatabaseFiles,
-                               private val filesRecords: FileRecords
+                               private val fileRecords: ConcurrentLinkedDeque<FileRecords>
 ): RecordsSink {
 
     override fun invoke(records: Sequence<Record>) {
@@ -11,6 +13,6 @@ internal class FileRecordsSink(private val databaseFiles: DatabaseFiles,
         records.forEach {
             newDatabaseTableFile.appendBytes(it.asBytes())
         }
-        filesRecords.add(DatabaseFile(newDatabaseTableFile))
+        fileRecords.addFirst(FileRecords(newDatabaseTableFile))
     }
 }

@@ -4,36 +4,7 @@ import com.deliriouslycurious.*
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
-import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.coroutines.experimental.buildSequence
-
-internal class FileRecords(databaseFiles: DatabaseFiles) {
-
-    private val files: ConcurrentLinkedDeque<DatabaseFile> = ConcurrentLinkedDeque(databaseFiles.files())
-
-    fun add(file: DatabaseFile) {
-        files.addFirst(file)
-    }
-
-    fun get(key: Key): Record? {
-
-        val filesIterator = files.iterator()
-        while (filesIterator.hasNext()) {
-            val file = filesIterator.next()
-            val sequence = file.fetchRecordsWhere(SpecifiedKey(key))
-            val record = sequence.use {
-                it.lastOrNull()
-            }
-
-            if (record != null) {
-                return record
-            }
-        }
-
-        return null
-    }
-
-}
 
 internal class DatabaseFiles(private val databaseFilesPath: File) {
 
@@ -47,7 +18,7 @@ internal class DatabaseFiles(private val databaseFilesPath: File) {
 
     fun new(): File = databaseFilesPath.resolve(fileName(files().count()))
 
-    fun files(): List<DatabaseFile> = databaseFilesPath
+    fun files(): List<FileRecords> = databaseFilesPath
             .listFiles()
             .filter { it.name.endsWith(".db") }
             .mapNotNull { file ->
@@ -55,10 +26,10 @@ internal class DatabaseFiles(private val databaseFilesPath: File) {
                 fileNumber?.let { Pair(it, file) }
             }
             .sortedByDescending { it.first }
-            .map { DatabaseFile(it.second) }
+            .map { FileRecords(it.second) }
 }
 
-internal class DatabaseFile(private val file: File) {
+internal class FileRecords(private val file: File) {
 
     private val index: SkipIndex
 
@@ -66,7 +37,9 @@ internal class DatabaseFile(private val file: File) {
         index = SkipIndex.create(file, fetchRecordAndOffsetsWhere(everything))
     }
 
-    fun fetchRecordsWhere(keySearchCriteria: KeySearchCriteria): CloseableSequence<Record> {
+    fun get(key: Key): Record? = fetchRecordsWhere(SpecifiedKey(key)).toList().lastOrNull()
+
+    private fun fetchRecordsWhere(keySearchCriteria: KeySearchCriteria): CloseableSequence<Record> {
         return fetchRecordAndOffsetsWhere(keySearchCriteria).map { it.record }
     }
 

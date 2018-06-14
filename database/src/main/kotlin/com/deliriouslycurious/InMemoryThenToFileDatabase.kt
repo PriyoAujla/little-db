@@ -1,13 +1,10 @@
 package com.deliriouslycurious
 
 import com.deliriouslycurious.Status.*
-import com.deliriouslycurious.records.DatabaseFiles
-import com.deliriouslycurious.records.FileRecords
-import com.deliriouslycurious.records.FileRecordsSink
-import com.deliriouslycurious.records.InMemoryRecords
+import com.deliriouslycurious.records.*
 import java.io.File
 import java.util.*
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.ConcurrentLinkedDeque
 
 
 private val defaultSizeOf128Mb = 134_217_728
@@ -19,7 +16,8 @@ class InMemoryThenToFileDatabase(sizeOfMemoryTable: Int = defaultSizeOf128Mb,
     private val maxKeySize = 4098
     private val databaseFiles = DatabaseFiles(databaseFilesPath)
     private val inMemoryRecords = InMemoryRecords(sizeOfMemoryTable, databaseFilesPath)
-    private val fileRecords = FileRecords(databaseFiles)
+    private val fileRecords: ConcurrentLinkedDeque<FileRecords> = ConcurrentLinkedDeque(databaseFiles.files())
+
 
     override fun insert(record: Pair<Key, Data>) {
         record.first.validateSizeOrThrow()
@@ -29,14 +27,14 @@ class InMemoryThenToFileDatabase(sizeOfMemoryTable: Int = defaultSizeOf128Mb,
     }
 
     override fun get(key: Key): Data? {
-        val context = Profiling.getResponseTimes.time()
-        val record = inMemoryRecords.get(key) ?: fileRecords.get(key)
+        val stopWatch = Profiling.getResponseTimes.time()
+        val record = inMemoryRecords.get(key) ?: tryFileRecords(key)
         val result =  if (record == null || record.metaData.recordInfo.deleted()) {
             null
         } else {
             record.data
         }
-        context.stop()
+        stopWatch.stop()
         return result
     }
 
@@ -64,6 +62,20 @@ class InMemoryThenToFileDatabase(sizeOfMemoryTable: Int = defaultSizeOf128Mb,
                 is RecordIsTooLarge -> throw Exception("Record is too large $result")
             }
         } while (result !is Successful)
+    }
+
+    private fun tryFileRecords(key: Key): Record? {
+        val filesIterator = fileRecords.iterator()
+        while (filesIterator.hasNext()) {
+            val file = filesIterator.next()
+            val record = file.get(key)
+
+            if (record != null) {
+                return record
+            }
+        }
+
+        return null
     }
 }
 

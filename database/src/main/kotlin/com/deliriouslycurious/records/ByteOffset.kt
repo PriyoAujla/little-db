@@ -1,4 +1,4 @@
-package com.deliriouslycurious
+package com.deliriouslycurious.records
 
 data class ByteOffset(val value: Long) {
     companion object {

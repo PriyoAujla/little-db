@@ -59,7 +59,7 @@ internal class InMemoryRecords(private val size: Int, private val databaseFilesP
 
     fun delete(key: Key): Status = addRecord(key, emptyData, emptyRecordInfo.withDeleteBitSet())
 
-    fun migrateToFilesRecords(spaceNeededToWriteRecord: Int, fileRecords: FileRecords, nextTableNumber: AtomicInteger): Status {
+    fun migrateRecords(spaceNeededToWriteRecord: Int, recordsSink: RecordsSink): Status {
         synchronized(this) {
             val currentFreeSpace = size - writeEndPosition.get()
             // check again if migration is necessary for the given record size
@@ -77,23 +77,17 @@ internal class InMemoryRecords(private val size: Int, private val databaseFilesP
                     // wait for any thread that managed to reserve space for it's record to finish writing the record
                 }
 
-                val recordsToSaveToFile = all().toList()
+                val recordsToSaveToFile = all()
                         .groupBy { it.key }
                         .map { it.value.last() }
                         .sortedBy { it.key.value() }
 
-                val newDatabaseTableFile = databaseFilesPath.resolve(DatabaseFiles.fileName(nextTableNumber.get()))
-                recordsToSaveToFile.forEach {
-                    newDatabaseTableFile.appendBytes(it.asBytes())
-                }
-                fileRecords.add(DatabaseFile(newDatabaseTableFile))
-
-                nextTableNumber.incrementAndGet()
+                recordsSink(recordsToSaveToFile.asSequence())
                 readEndPosition.getAndSet(0)
                 writeEndPosition.getAndSet(0)
 
                 logWriter.addAction(LogWriter.LogCommand.ExpungeData())
-                return Status.MigratedRecordsToFile(newDatabaseTableFile)
+                return Status.MigratedRecords()
             } else {
                 return Status.TryReInserting()
             }

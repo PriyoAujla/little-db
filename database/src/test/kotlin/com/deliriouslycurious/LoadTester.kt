@@ -199,69 +199,7 @@ class LoadTester {
         }
     }
 
-    /*
-     * Before SSTable
-     * -- Histograms ------------------------------------------------------------------
-        file-key-search-histogram
-                     count = 889
-                       min = 0
-                       max = 126
-                      mean = 63.00
-                    stddev = 36.68
-                    median = 63.00
-                      75% <= 95.00
-                      95% <= 120.00
-                      98% <= 124.00
-                      99% <= 125.00
-                    99.9% <= 126.00
 
-
-    * After SSTable and middle offset only
-    * -- Histograms ------------------------------------------------------------------
-        file-key-search-histogram
-                     count = 889
-                       min = 0
-                       max = 63
-                      mean = 31.25
-                    stddev = 18.34
-                    median = 31.00
-                      75% <= 47.00
-                      95% <= 60.00
-                      98% <= 62.00
-                      99% <= 62.00
-                    99.9% <= 63.00
-
-     * After SSTable and 4 offsets
-     *-- Histograms ------------------------------------------------------------------
-        file-key-search-histogram
-                     count = 889
-                       min = 0
-                       max = 31
-                      mean = 15.38
-                    stddev = 9.17
-                    median = 15.00
-                      75% <= 23.00
-                      95% <= 30.00
-                      98% <= 31.00
-                      99% <= 31.00
-                    99.9% <= 31.00
-
-      * After SSTable and 10 offsets
-      *-- Histograms ------------------------------------------------------------------
-        file-key-search-histogram
-                     count = 889
-                       min = 0
-                       max = 12
-                      mean = 5.86
-                    stddev = 3.67
-                    median = 6.00
-                      75% <= 9.00
-                      95% <= 12.00
-                      98% <= 12.00
-                      99% <= 12.00
-                    99.9% <= 12.00
-
-     */
     @Test
     fun `calculate sequential reads per second from file table with 1mb inserts`() {
         val database = InMemoryThenToFileDatabase(databaseFilesPath = storageDirectory.resolve(File("stress-test-file-only")))

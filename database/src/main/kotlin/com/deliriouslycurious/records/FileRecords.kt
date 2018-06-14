@@ -45,6 +45,8 @@ internal class DatabaseFiles(private val databaseFilesPath: File) {
 
     private val extractFileNumber = Regex("table-([0-9]+).db")
 
+    fun new(): File = databaseFilesPath.resolve(fileName(files().count()))
+
     fun files(): List<DatabaseFile> = databaseFilesPath
             .listFiles()
             .filter { it.name.endsWith(".db") }
